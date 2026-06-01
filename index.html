@@ -872,11 +872,26 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-analytics.js"></script>
     <script>
+        // --- INICIALIZAÇÃO DO FIREBASE ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDc3pdwFlSGdVkdFOSCUBJZpIRQOPmPc0o",
+            authDomain: "financas-do-edy.firebaseapp.com",
+            projectId: "financas-do-edy",
+            storageBucket: "financas-do-edy.firebasestorage.app",
+            messagingSenderId: "1087768862467",
+            appId: "1:1087768862467:web:126da5464bc76725841336",
+            measurementId: "G-BC9HXQ3LDQ"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+
         // --- ESTADO DA APLICAÇÃO ---
-        let users = JSON.parse(localStorage.getItem('financas_users')) || [];
-        let currentUser = localStorage.getItem('financas_current_user') || null;
-        let currentUserKey = currentUser ? makeUserKey(currentUser) : null;
+        let currentUser = null;
+        let currentUserKey = null;
 
         let lancamentos = [];
         let planejamento = {};
@@ -896,27 +911,14 @@
             return `financas_${currentUserKey}_${suffix}`;
         }
 
-        function saveUsers() {
-            localStorage.setItem('financas_users', JSON.stringify(users));
-        }
-
         function setCurrentUser(email) {
             currentUser = email;
             currentUserKey = makeUserKey(email);
-            localStorage.setItem('financas_current_user', email);
         }
 
         function clearCurrentUser() {
-            localStorage.removeItem('financas_current_user');
             currentUser = null;
             currentUserKey = null;
-        }
-
-        async function hashSenha(senha) {
-            const encoder = new TextEncoder();
-            const data = encoder.encode(senha);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-            return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
         function loadUserData() {
@@ -966,17 +968,19 @@
             e.preventDefault();
             const email = document.getElementById('loginEmail').value.trim().toLowerCase();
             const senha = document.getElementById('loginPassword').value;
-            const hash = await hashSenha(senha);
-            const usuario = users.find(u => u.email === email);
-            if (!usuario || usuario.passwordHash !== hash) {
-                alert('E-mail ou senha inválidos.');
-                return;
+
+            try {
+                const userCredential = await auth.signInWithEmailAndPassword(email, senha);
+                setCurrentUser(userCredential.user.email);
+                loadUserData();
+                showApp();
+                atualizarCategorias();
+                atualizarTela();
+                document.getElementById('loginEmail').value = '';
+                document.getElementById('loginPassword').value = '';
+            } catch (error) {
+                alert('Erro ao fazer login: ' + error.message);
             }
-            setCurrentUser(email);
-            loadUserData();
-            showApp();
-            atualizarCategorias();
-            atualizarTela();
         }
 
         async function registrarUsuario(e) {
@@ -993,25 +997,30 @@
                 alert('As senhas não coincidem.');
                 return;
             }
-            if (users.some(u => u.email === email)) {
-                alert('Este e-mail já está cadastrado. Faça login.');
-                return;
-            }
 
-            const senhaHash = await hashSenha(senha);
-            users.push({ email, passwordHash: senhaHash });
-            saveUsers();
-            setCurrentUser(email);
-            loadUserData();
-            saveLocalStorage();
-            showApp();
-            atualizarCategorias();
-            atualizarTela();
+            try {
+                const userCredential = await auth.createUserWithEmailAndPassword(email, senha);
+                setCurrentUser(userCredential.user.email);
+                loadUserData();
+                saveLocalStorage();
+                showApp();
+                atualizarCategorias();
+                atualizarTela();
+                document.getElementById('signupEmail').value = '';
+                document.getElementById('signupPassword').value = '';
+                document.getElementById('signupConfirmPassword').value = '';
+            } catch (error) {
+                alert('Erro ao criar conta: ' + error.message);
+            }
         }
 
         function logout() {
-            clearCurrentUser();
-            showAuth();
+            auth.signOut().then(() => {
+                clearCurrentUser();
+                showAuth();
+            }).catch(error => {
+                alert('Erro ao fazer logout: ' + error.message);
+            });
         }
 
         function ordenarCategorias(tipo) {
@@ -1049,17 +1058,20 @@
             document.getElementById('monthSelector').addEventListener('change', atualizarTela);
             definirTemaAtual();
 
-            if (currentUser && users.some(u => u.email === currentUser)) {
-                loadUserData();
-                showApp();
-                ordenarCategorias('income');
-                ordenarCategorias('expense');
-                atualizarCategorias();
-                atualizarTela();
-            } else {
-                clearCurrentUser();
-                showAuth();
-            }
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    setCurrentUser(user.email);
+                    loadUserData();
+                    showApp();
+                    ordenarCategorias('income');
+                    ordenarCategorias('expense');
+                    atualizarCategorias();
+                    atualizarTela();
+                } else {
+                    clearCurrentUser();
+                    showAuth();
+                }
+            });
 
             document.querySelectorAll('.modal').forEach(modal => {
                 modal.addEventListener('click', (e) => {
