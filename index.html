@@ -2,59 +2,53 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Recuperação - Finanças</title>
+    <title>Painel de Finanças</title>
     <style>
         body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f0f2f5; }
-        .box { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 350px; }
-        input, button { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        button { background: #4f46e5; color: white; border: none; cursor: pointer; font-weight: bold; }
+        #loading { font-size: 1.2rem; color: #555; }
+        #app { display: none; width: 90%; max-width: 600px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
     </style>
-    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
-<div class="box">
-    <h2 style="text-align:center;">Acesso ao App</h2>
-    <input type="email" id="email" placeholder="E-mail">
-    <input type="password" id="password" placeholder="Senha">
-    <button onclick="fazerLogin()">Entrar</button>
-    <button onclick="criarConta()" style="background: #10b981;">Criar Conta</button>
-</div>
+    <div id="loading">Carregando painel...</div>
+    <div id="app">
+        <h1>Bem-vindo ao seu Painel</h1>
+        <p>Você está logado com sucesso.</p>
+        <button onclick="auth.signOut(); location.reload();">Sair</button>
+    </div>
 
-<script>
-    const firebaseConfig = {
-        apiKey: "AIzaSyDc3pdwFlSGdVkdFOSCUBJZpIRQOPmPc0o",
-        authDomain: "financas-do-edy.firebaseapp.com",
-        projectId: "financas-do-edy",
-        storageBucket: "financas-do-edy.firebasestorage.app",
-        messagingSenderId: "1087768862467",
-        appId: "1:1087768862467:web:126da5464bc76725841336"
-    };
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDc3pdwFlSGdVkdFOSCUBJZpIRQOPmPc0o",
+            authDomain: "financas-do-edy.firebaseapp.com",
+            projectId: "financas-do-edy",
+            storageBucket: "financas-do-edy.firebasestorage.app",
+            messagingSenderId: "1087768862467",
+            appId: "1:1087768862467:web:126da5464bc76725841336"
+        };
 
-    // Inicialização segura
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
 
-    async function fazerLogin() {
-        const email = document.getElementById('email').value;
-        const pass = document.getElementById('password').value;
-        try {
-            await auth.signInWithEmailAndPassword(email, pass);
-            alert("Sucesso! Recarregue a página.");
-        } catch(e) { alert("Erro: " + e.message); }
-    }
+        // Monitora o estado do usuário
+        auth.onAuthStateChanged((user) => {
+            const loading = document.getElementById('loading');
+            const app = document.getElementById('app');
 
-    async function criarConta() {
-        const email = document.getElementById('email').value;
-        const pass = document.getElementById('password').value;
-        try {
-            await auth.createUserWithEmailAndPassword(email, pass);
-            alert("Conta criada! Agora faça o login.");
-        } catch(e) { alert("Erro ao criar: " + e.message); }
-    }
-</script>
+            if (user) {
+                // Usuário logado: esconde o loading e mostra o app
+                loading.style.display = 'none';
+                app.style.display = 'block';
+            } else {
+                // Usuário deslogado: redireciona para a tela de login (que você tinha antes)
+                // Se você ainda não tem a tela, podemos construir aqui.
+                loading.innerText = "Você não está logado. Por favor, faça login.";
+            }
+        });
+    </script>
 </body>
 </html>
